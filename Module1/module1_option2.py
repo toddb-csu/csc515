@@ -1,6 +1,6 @@
 # Todd Bartoszkiewicz
 # CSC515: Foundations of Computer Vision
-# Module 1: Portfolio Milestone
+# Module 1: Portfolio Milestone Option #2
 import cv2
 import tkinter as tk
 from tkinter import filedialog
