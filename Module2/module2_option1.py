@@ -17,15 +17,6 @@ if __name__ == '__main__':
     print('Value of only the G channel {}'.format(img[100, 50, 1]))
     print('Value of only the R channel {}'.format(img[100, 50, 2]))
 
-    b_channel, g_channel, r_channel = cv2.split(img)
-    print(f"\nShape of blue channel matrix: {b_channel.shape}")
-    print(f"\nShape of green channel matrix: {g_channel.shape}")
-    print(f"\nShape of red channel matrix: {r_channel.shape}")
-
-    cv2.imshow("Blue Channel (as Grayscale)", b_channel)
-    cv2.imshow("Green Channel (as Grayscale)", g_channel)
-    cv2.imshow("Red Channel (as Grayscale)", r_channel)
-
     fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(15, 5))
     for c, ax in zip(range(3), ax):
         # create zeros matrix
@@ -33,8 +24,7 @@ if __name__ == '__main__':
         # access each channel
         split_img[:, :, c] = img[:, :, c]
         # print each channel
-        # print(split_img)
-        print('Shape of the image: {}'.format(split_img))
+        print(split_img)
         # display each channel
         ax.imshow(split_img)
         cv2.imwrite('split_img_' + str(c) + '.jpg', split_img)
