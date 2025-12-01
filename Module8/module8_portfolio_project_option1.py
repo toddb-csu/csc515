@@ -32,6 +32,7 @@ import cv2
 import os
 import numpy as np
 import easyocr
+import pytesseract
 
 
 if __name__ == "__main__":
@@ -44,7 +45,8 @@ if __name__ == "__main__":
         'non_russian.jpg'
     ]
 
-    reader = easyocr.Reader(['ru', 'en'])  # Supports Russian and English
+    # Russian and English
+    reader = easyocr.Reader(['ru', 'en'])
     results = []
 
     for img_file in image_files:
@@ -100,25 +102,14 @@ if __name__ == "__main__":
             cv2.imshow("Grayscale License Plate Detection", gray_img)
             cv2.imshow("Rotated", rotated)
 
-            # Preprocessing: Resize to standard size, threshold, and rotate if needed
-            # plate = cv2.resize(plate, (200, 50))  # Scale to horizontal
-            # _, plate = cv2.threshold(plate, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-            # Detect skew and rotate
-            # coords = np.column_stack(np.where(plate > 0))
-            # angle = cv2.minAreaRect(coords)[-1]
-            # if angle < -45:
-            #     angle = -(90 + angle)
-            # else:
-            #     angle = -angle
-            # plate = imutils.rotate_bound(plate, angle)
-
             # Recognize text
-            text = reader.readtext(rotated, detail=0)
+            #
+            text = pytesseract.image_to_string(rotated, lang='rus')
+            if not text:
+                text = reader.readtext(rotated, detail=0)
             results.append(' '.join(text))  # Join detected characters
 
-            # Insert processed plate back into full image (optional overlay)
-            # Or just save separately
+            # Save image files
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_grayscale_{i}.jpg", gray_img)
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_color_{i}.jpg", orig_img)
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_rotated_{i}.jpg", rotated)
