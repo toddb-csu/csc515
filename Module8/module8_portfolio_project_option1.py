@@ -31,6 +31,7 @@
 import cv2
 import os
 import numpy as np
+import easyocr
 
 
 if __name__ == "__main__":
@@ -42,6 +43,9 @@ if __name__ == "__main__":
         'russian_plate_2_far.jpg',
         'non_russian.jpg'
     ]
+
+    reader = easyocr.Reader(['ru', 'en'])  # Supports Russian and English
+    results = []
 
     for img_file in image_files:
         # Read image
@@ -68,6 +72,7 @@ if __name__ == "__main__":
         for i, (x, y, w, h) in enumerate(plates):
             # Draw red rectangle around detected plate
             cv2.rectangle(gray_img, (x, y), (x + w, y + h), (0, 0, 255), 2)
+            cv2.rectangle(orig_img, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
             # Extract plate region
             plate_roi = gray_img[y:y + h, x:x + w]
@@ -91,33 +96,34 @@ if __name__ == "__main__":
             rotated = cv2.warpAffine(plate_roi, M, (plate_roi.shape[1], plate_roi.shape[0]))
 
             # Display result
-            cv2.imshow("License Plate Detection", gray_img)
+            cv2.imshow("Color License Plate Detection", orig_img)
+            cv2.imshow("Grayscale License Plate Detection", gray_img)
             cv2.imshow("Rotated", rotated)
 
-            # Find contours
-            contours, _ = cv2.findContours(rotated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Preprocessing: Resize to standard size, threshold, and rotate if needed
+            # plate = cv2.resize(plate, (200, 50))  # Scale to horizontal
+            # _, plate = cv2.threshold(plate, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-            # Filter by area and aspect ratio to find characters
-            char_contours = []
-            h_mean = np.mean([cv2.boundingRect(c)[3] for c in contours]) * 0.5 if contours else 10
-            for cnt in contours:
-                x, y, w, h = cv2.boundingRect(cnt)
-                aspect = w / h if h > 0 else 0
-                area = cv2.contourArea(cnt)
-                if 0.2 < aspect < 1.0 and h > h_mean and area > 50:
-                    char_contours.append((x, y, w, h))
+            # Detect skew and rotate
+            # coords = np.column_stack(np.where(plate > 0))
+            # angle = cv2.minAreaRect(coords)[-1]
+            # if angle < -45:
+            #     angle = -(90 + angle)
+            # else:
+            #     angle = -angle
+            # plate = imutils.rotate_bound(plate, angle)
 
-            # Sort left to right
-            char_contours = sorted(char_contours, key=lambda x: x[0])
-
-            # Draw bounding boxes on original plate
-            for (x1, y1, w1, h1) in char_contours:
-                cv2.rectangle(gray_img, (x1, y1), (x1 + w1, y1 + h1), (0, 255, 0), 1)
+            # Recognize text
+            text = reader.readtext(rotated, detail=0)
+            results.append(' '.join(text))  # Join detected characters
 
             # Insert processed plate back into full image (optional overlay)
             # Or just save separately
-            cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_{i}.jpg", gray_img)
-            print(f"  Plate {i + 1}: Found {len(char_contours)} potential characters")
+            cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_grayscale_{i}.jpg", gray_img)
+            cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_color_{i}.jpg", orig_img)
+            cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_rotated_{i}.jpg", rotated)
+
+            print(f"  Plate {i + 1}: Found {len(text)} potential characters: {text}")
 
             # Save annotated image
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_annotated.jpg", img)
