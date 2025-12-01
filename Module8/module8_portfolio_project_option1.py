@@ -49,6 +49,10 @@ if __name__ == "__main__":
     reader = easyocr.Reader(['ru', 'en'])
     results = []
 
+    original_width = 0
+    original_height = 0
+    scale_factor = 0.75
+
     for img_file in image_files:
         # Read image
         img = cv2.imread(img_file)
@@ -96,6 +100,40 @@ if __name__ == "__main__":
             center = (plate_roi.shape[1] // 2, plate_roi.shape[0] // 2)
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
             rotated = cv2.warpAffine(plate_roi, M, (plate_roi.shape[1], plate_roi.shape[0]))
+            enhanced_img = rotated.copy()
+
+            if original_width == 0:
+                dimensions = enhanced_img.shape
+                original_height = dimensions[0]
+                original_width = dimensions[1]
+
+            dimensions = enhanced_img.shape
+            if dimensions[1] > original_width:
+                enhanced_img = cv2.resize(enhanced_img, None, fx=1.2, fy=1.2, interpolation=cv2.INTER_AREA)
+
+            enhanced_img = cv2.medianBlur(enhanced_img, 3)
+            enhanced_img = cv2.adaptiveThreshold(enhanced_img, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 5, 4)
+            enhanced_img = cv2.fastNlMeansDenoising(enhanced_img, None, 10, 7, 21)
+            _, enhanced_img = cv2.threshold(enhanced_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            enhanced_img = cv2.fastNlMeansDenoising(enhanced_img, None, 10, 7, 21)
+            enhanced_img = cv2.addWeighted(enhanced_img, 1, enhanced_img, 1, 1)
+            enhanced_img = cv2.medianBlur(enhanced_img, 3)
+
+            sharpening_kernel = np.array([
+                [0, -1, 0],
+                [-1, 5, -1],
+                [0, -1, 0]
+            ])
+            enhanced_img = cv2.filter2D(enhanced_img, -1, sharpening_kernel)
+
+            blurred = cv2.GaussianBlur(enhanced_img, (3, 3), 1.0)
+            sharpened = float(1.0 + 1) * enhanced_img - float(1.0) * blurred
+            sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
+            sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
+            enhanced_img = sharpened.round().astype(np.uint8)
+
+            enhanced_img = cv2.convertScaleAbs(enhanced_img, 0.0, 100)
+            enhanced_img = cv2.bilateralFilter(enhanced_img, 15, 15, 15, 15)
 
             # Display result
             cv2.imshow("Color License Plate Detection", orig_img)
@@ -113,6 +151,7 @@ if __name__ == "__main__":
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_grayscale_{i}.jpg", gray_img)
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_plate_color_{i}.jpg", orig_img)
             cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_rotated_{i}.jpg", rotated)
+            cv2.imwrite(f"output/{os.path.splitext(img_file)[0]}_enhanced_{i}.jpg", enhanced_img)
 
             print(f"  Plate {i + 1}: Found {len(text)} potential characters: {text}")
 
